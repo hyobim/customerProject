@@ -3,12 +3,14 @@ package com.hyundai.test.address.controller.dto;
 import com.hyundai.test.address.domain.Customer;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
+import lombok.Builder;
 
 import static com.hyundai.test.address.validation.CustomerValidator.EMAIL_FORMAT_MESSAGE;
 import static com.hyundai.test.address.validation.CustomerValidator.EMAIL_REGEX;
 import static com.hyundai.test.address.validation.CustomerValidator.PHONE_FORMAT_MESSAGE;
 import static com.hyundai.test.address.validation.CustomerValidator.PHONE_REGEX;
 
+@Builder
 public record CustomerRequest(
         @NotBlank(message = "주소는 필수입니다.")
         String address,

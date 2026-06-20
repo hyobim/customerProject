@@ -20,6 +20,16 @@ HTTP 요청 DTO는 Bean Validation으로 필수값과 기본 형식을 빠르게
 
 Controller에서 Service로 전달하는 조회 인자는 `CustomerSearchRequest`로 묶었다. HTTP 쿼리 파라미터 계약은 유지하고, 내부 메서드의 인자 순서 실수와 확장 비용만 줄인다.
 
+`CustomerSearchRequest`는 HTTP 전용 DTO가 아니므로 `controller.dto`에 두지 않는다. Service가 Controller 패키지에 의존하면 계층 의존 방향이 역전되기 때문이다. 반면 원시 `sortBy`, `direction` 문자열을 가진 객체는 핵심 도메인 모델도 아니므로 `domain` 대신 `service.dto`에 두어 애플리케이션 서비스 입력 DTO임을 명시한다.
+
+현재 HTTP 검색 조건과 Service 검색 입력의 필드가 완전히 같고 별도 변환 규칙이 없으므로 Controller에서는 `@ModelAttribute CustomerSearchRequest`로 쿼리 파라미터를 직접 바인딩해 재사용한다. 두 계약이 달라지는 시점에는 HTTP DTO와 Service 입력 객체를 분리한다.
+
+## Lombok 적용
+
+요청·응답 DTO와 검색 입력 DTO는 같은 타입의 필드가 여러 개이므로 생성 시 필드 순서 실수를 줄이기 위해 Lombok `@Builder`를 제공한다. record에도 `@Builder`를 적용할 수 있으며, record의 불변 값 객체 특성과 Builder의 이름 기반 생성 편의는 서로 대체 관계가 아니다. Jackson은 기존 record 정규 생성자를 사용하므로 HTTP JSON 계약은 바뀌지 않는다.
+
+단순한 `final` 의존성만 주입받는 `AddressBookController`와 `AddressBookService`는 `@RequiredArgsConstructor`로 생성자 코드를 줄였다. 설정값을 변환하거나 생성자 파라미터에 `@Value`가 필요한 `CsvCustomerStore`, `CustomerDataLifecycle`은 생성 과정 자체가 의미를 가지므로 명시적 생성자를 유지한다.
+
 ## CSV
 
 외부 의존성을 늘리지 않고 필드 내 쉼표, 이중 따옴표, 줄바꿈을 지원하는 작은 스트리밍 CSV 코덱을 구현했다. 전체 파일 문자열을 메모리에 올리지 않고 레코드 단위로 읽는다.

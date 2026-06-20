@@ -1,10 +1,10 @@
 package com.hyundai.test.address.service;
 
 import com.hyundai.test.address.domain.Customer;
-import com.hyundai.test.address.domain.CustomerSearchRequest;
 import com.hyundai.test.address.exception.CustomerNotFoundException;
 import com.hyundai.test.address.exception.InvalidSearchConditionException;
 import com.hyundai.test.address.repository.InMemoryCustomerRepository;
+import com.hyundai.test.address.service.dto.CustomerSearchRequest;
 import com.hyundai.test.address.validation.CustomerValidator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,8 +28,12 @@ class AddressBookServiceTest {
 
     @Test
     void 여러_조회_조건을_AND로_결합하고_정렬한다() {
-        assertThat(service.search(new CustomerSearchRequest(
-                        null, null, "시", "이", "name", "desc")))
+        assertThat(service.search(CustomerSearchRequest.builder()
+                        .address("시")
+                        .name("이")
+                        .sortBy("name")
+                        .direction("desc")
+                        .build()))
                 .extracting(Customer::name)
                 .containsExactly("이몽룡");
     }

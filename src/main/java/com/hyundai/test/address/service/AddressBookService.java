@@ -3,27 +3,24 @@ package com.hyundai.test.address.service;
 import com.hyundai.test.address.domain.Customer;
 import com.hyundai.test.address.domain.CustomerChange;
 import com.hyundai.test.address.domain.CustomerSearchCondition;
-import com.hyundai.test.address.domain.CustomerSearchRequest;
 import com.hyundai.test.address.domain.SortDirection;
 import com.hyundai.test.address.domain.SortField;
 import com.hyundai.test.address.exception.InvalidSearchConditionException;
 import com.hyundai.test.address.repository.CustomerRepository;
+import com.hyundai.test.address.service.dto.CustomerSearchRequest;
 import com.hyundai.test.address.validation.CustomerValidator;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.stream.Stream;
 
 @Service
+@RequiredArgsConstructor
 public class AddressBookService {
 
     private final CustomerRepository repository;
     private final CustomerValidator validator;
-
-    public AddressBookService(CustomerRepository repository, CustomerValidator validator) {
-        this.repository = repository;
-        this.validator = validator;
-    }
 
     public List<Customer> search(CustomerSearchRequest request) {
         CustomerSearchCondition condition = condition(

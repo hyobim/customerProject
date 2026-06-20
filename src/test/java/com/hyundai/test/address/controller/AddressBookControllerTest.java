@@ -34,7 +34,13 @@ class AddressBookControllerTest {
 
     @Test
     void 조회_결과를_JSON_배열로_반환한다() throws Exception {
-        mockMvc.perform(get("/api/customers").param("name", "홍길"))
+        mockMvc.perform(get("/api/customers")
+                        .param("phoneNumber", "01000000000")
+                        .param("email", "hong@hyundai.com")
+                        .param("address", "광진")
+                        .param("name", "홍길")
+                        .param("sortBy", "name")
+                        .param("direction", "desc"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].phoneNumber").value("010-0000-0000"));
     }

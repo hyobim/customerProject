@@ -16,7 +16,7 @@ $env:JAVA_HOME='C:\Users\김효빈\.jdks\openjdk-17.0.2'
 결과:
 
 - `BUILD SUCCESSFUL`
-- 테스트 33개, 실패 0개, 스킵 0개
+- 테스트 34개, 실패 0개, 오류 0개, 스킵 0개
 - `be-address-0.0.1-SNAPSHOT.jar` 생성 성공
 - Gradle `--warning-mode all`에서 제거 예정 API 경고 없음
 
@@ -34,6 +34,7 @@ $env:JAVA_HOME='C:\Users\김효빈\.jdks\openjdk-17.0.2'
 - 실제 Spring Context의 `@PostConstruct` 로딩과 `@PreDestroy` 종료 저장
 - 종료 시 백업 내용, 최종 CSV 반영, 저장 결과 재로딩
 - MockMvc 조회·수정 성공과 잘못된 정렬·삭제 요청 오류
+- record DTO Builder 생성과 Lombok 생성자 주입
 
 ## 실행 JAR API QA
 
@@ -50,3 +51,39 @@ $env:JAVA_HOME='C:\Users\김효빈\.jdks\openjdk-17.0.2'
 ## 실행 환경 메모
 
 초기 시스템 `JAVA_HOME`은 존재하지 않는 `C:\Program Files\Java\jdk-14.0.2`를 가리켜 Wrapper 실행이 실패했다. 명령 범위에서 실제 OpenJDK 17 경로로 교정한 후 현재 한글 경로에서 전체 테스트와 패키징이 성공했다. 과거 한글 경로 문제는 이번 환경에서 재현되지 않았다.
+
+## DTO Builder 및 생성자 주입 추가 검증
+
+### 변경 검증
+
+- Lombok `@Builder`를 적용한 record DTO의 컴파일과 생성 검증
+- `CustomerRequest` record의 기존 JSON 역직렬화 검증
+- `@RequiredArgsConstructor`가 적용된 Controller와 Service의 Spring Context 생성 검증
+- `CustomerSearchRequest`의 `service.dto` 이동 후 조회 회귀 검증
+- 여섯 개 검색 쿼리 파라미터의 `CustomerSearchRequest` 직접 바인딩 검증
+
+### 자동 테스트
+
+```text
+./gradlew.bat clean test --warning-mode all --no-daemon
+BUILD SUCCESSFUL
+테스트 34개
+실패 0개
+오류 0개
+스킵 0개
+```
+
+### 실행 JAR QA
+
+프로젝트 원본 `default_address.csv` 대신 `build/qa-builder/qa-address.csv` 복사본을 사용했다.
+
+- 이름 조회: 200, 전화번호 `010-0000-0000`
+- 고객 수정: 200
+- 수정 전 전화번호: `010-0000-0000`
+- 수정 후 전화번호: `010-1234-5678`
+- 수정 후 이메일: `builder@hyundai.com`
+- 잘못된 정렬 필드: 400
+- 여섯 개 검색 쿼리 파라미터 직접 바인딩: 200, 결과 1건
+- 원본 `default_address.csv` SHA-256 불변
+
+QA 프로세스는 확인 후 종료했으며 백그라운드 서버를 남기지 않았다.
