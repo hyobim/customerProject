@@ -92,3 +92,4 @@ Content-Type: application/json
 - `docs/api-specification.md`
 - `docs/implementation-decisions.md`
 - `docs/test-and-qa-report.md`
+- `docs/session-handoff.md`
