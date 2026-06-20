@@ -3,6 +3,7 @@ package com.hyundai.test.address.service;
 import com.hyundai.test.address.domain.Customer;
 import com.hyundai.test.address.domain.CustomerChange;
 import com.hyundai.test.address.domain.CustomerSearchCondition;
+import com.hyundai.test.address.domain.CustomerSearchRequest;
 import com.hyundai.test.address.domain.SortDirection;
 import com.hyundai.test.address.domain.SortField;
 import com.hyundai.test.address.exception.InvalidSearchConditionException;
@@ -24,16 +25,15 @@ public class AddressBookService {
         this.validator = validator;
     }
 
-    public List<Customer> search(
-            String phoneNumber,
-            String email,
-            String address,
-            String name,
-            String sortBy,
-            String direction
-    ) {
+    public List<Customer> search(CustomerSearchRequest request) {
         CustomerSearchCondition condition = condition(
-                phoneNumber, email, address, name, sortBy, direction);
+                request.phoneNumber(),
+                request.email(),
+                request.address(),
+                request.name(),
+                request.sortBy(),
+                request.direction()
+        );
         return repository.search(condition);
     }
 

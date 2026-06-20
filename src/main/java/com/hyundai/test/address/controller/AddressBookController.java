@@ -4,6 +4,7 @@ import com.hyundai.test.address.controller.dto.CustomerChangeResponse;
 import com.hyundai.test.address.controller.dto.CustomerRequest;
 import com.hyundai.test.address.controller.dto.CustomerResponse;
 import com.hyundai.test.address.domain.Customer;
+import com.hyundai.test.address.domain.CustomerSearchRequest;
 import com.hyundai.test.address.service.AddressBookService;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
@@ -29,7 +30,8 @@ public class AddressBookController {
             @RequestParam(required = false) String sortBy,
             @RequestParam(required = false) String direction
     ) {
-        return service.search(phoneNumber, email, address, name, sortBy, direction)
+        return service.search(new CustomerSearchRequest(
+                        phoneNumber, email, address, name, sortBy, direction))
                 .stream()
                 .map(CustomerResponse::from)
                 .toList();

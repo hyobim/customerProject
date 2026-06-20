@@ -9,10 +9,18 @@ import java.util.regex.Pattern;
 @Component
 public class CustomerValidator {
 
+    public static final String PHONE_REGEX =
+            "^(010\\d{7,8}|010-\\d{3}-\\d{4}|010-\\d{4}-\\d{4})$";
+    public static final String PHONE_FORMAT_MESSAGE =
+            "전화번호는 0101231234, 010-123-1234 또는 010-1234-1234 형식이어야 합니다.";
+    public static final String EMAIL_REGEX = "^[^\\s@]+@[^\\s@]+$";
+    public static final String EMAIL_FORMAT_MESSAGE =
+            "이메일은 아이디@도메인 형식이어야 합니다.";
+
     private static final Pattern PHONE_PATTERN =
-            Pattern.compile("^(010\\d{7,8}|010-\\d{3}-\\d{4}|010-\\d{4}-\\d{4})$");
+            Pattern.compile(PHONE_REGEX);
     private static final Pattern EMAIL_PATTERN =
-            Pattern.compile("^[^\\s@]+@[^\\s@]+$");
+            Pattern.compile(EMAIL_REGEX);
 
     public Customer validateAndNormalize(Customer customer) {
         if (customer == null) {
@@ -25,7 +33,7 @@ public class CustomerValidator {
         String name = requireText(customer.name(), "이름");
 
         if (!EMAIL_PATTERN.matcher(email).matches()) {
-            throw new InvalidCustomerException("이메일은 아이디@도메인 형식이어야 합니다.");
+            throw new InvalidCustomerException(EMAIL_FORMAT_MESSAGE);
         }
         return new Customer(address, phoneNumber, email, name);
     }
@@ -33,8 +41,7 @@ public class CustomerValidator {
     public String normalizePhoneNumber(String phoneNumber) {
         String value = requireText(phoneNumber, "전화번호");
         if (!PHONE_PATTERN.matcher(value).matches()) {
-            throw new InvalidCustomerException(
-                    "전화번호는 0101231234, 010-123-1234 또는 010-1234-1234 형식이어야 합니다.");
+            throw new InvalidCustomerException(PHONE_FORMAT_MESSAGE);
         }
 
         String digits = value.replace("-", "");
