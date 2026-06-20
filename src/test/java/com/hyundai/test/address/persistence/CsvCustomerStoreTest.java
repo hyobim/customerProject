@@ -7,9 +7,12 @@ import com.hyundai.test.address.validation.CustomerValidator;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -54,6 +57,64 @@ class CsvCustomerStoreTest {
     }
 
     @Test
+    void 임시_파일_쓰기가_실패하면_원본을_보존하고_임시_파일을_정리한다() throws Exception {
+        Path source = tempDirectory.resolve("default_address.csv");
+        String original = "주소,연락처,이메일,이름\n서울,01012345678,old@example.com,기존\n";
+        Files.writeString(source, original, StandardCharsets.UTF_8);
+        CsvCustomerStore store = new CsvCustomerStore(service(), source.toString()) {
+            @Override
+            void writeSnapshot(Path target) throws IOException {
+                throw new IOException("의도한 쓰기 실패");
+            }
+        };
+
+        assertThatThrownBy(store::save)
+                .isInstanceOf(CustomerDataFileException.class)
+                .hasCauseInstanceOf(IOException.class)
+                .rootCause()
+                .hasMessage("의도한 쓰기 실패");
+
+        assertThat(Files.readString(source, StandardCharsets.UTF_8)).isEqualTo(original);
+        assertThat(temporaryFiles()).isEmpty();
+    }
+
+    @Test
+    void 원본_교체가_실패하면_백업으로_원본을_복구하고_임시_파일을_정리한다() throws Exception {
+        Path source = tempDirectory.resolve("default_address.csv");
+        String original = "주소,연락처,이메일,이름\n서울,01012345678,old@example.com,기존\n";
+        Files.writeString(source, original, StandardCharsets.UTF_8);
+        AddressBookService service = service();
+        service.add(new com.hyundai.test.address.domain.Customer(
+                "부산", "01099999999", "new@example.com", "신규"));
+        CsvCustomerStore store = new CsvCustomerStore(service, source.toString()) {
+            @Override
+            void replaceSource(Path temporary) throws IOException {
+                Files.writeString(source, "손상된 원본", StandardCharsets.UTF_8);
+                throw new IOException("의도한 교체 실패");
+            }
+        };
+
+        assertThatThrownBy(store::save)
+                .isInstanceOf(CustomerDataFileException.class)
+                .hasCauseInstanceOf(IOException.class)
+                .rootCause()
+                .hasMessage("의도한 교체 실패");
+
+        assertThat(Files.readString(source, StandardCharsets.UTF_8)).isEqualTo(original);
+        assertThat(temporaryFiles()).isEmpty();
+    }
+
+    @Test
+    void 원본_파일이_없으면_저장에_실패한다() {
+        Path missing = tempDirectory.resolve("missing.csv");
+        CsvCustomerStore store = new CsvCustomerStore(service(), missing.toString());
+
+        assertThatThrownBy(store::save)
+                .isInstanceOf(CustomerDataFileException.class)
+                .hasMessageContaining("없거나 읽을 수 없습니다");
+    }
+
+    @Test
     void 원본_파일이_없으면_로딩에_실패한다() {
         Path missing = tempDirectory.resolve("missing.csv");
         CsvCustomerStore store = new CsvCustomerStore(service(), missing.toString());
@@ -83,5 +144,11 @@ class CsvCustomerStoreTest {
                 new InMemoryCustomerRepository(),
                 new CustomerValidator()
         );
+    }
+
+    private List<Path> temporaryFiles() throws IOException {
+        try (Stream<Path> files = Files.list(tempDirectory)) {
+            return files.filter(path -> path.getFileName().toString().endsWith(".tmp")).toList();
+        }
     }
 }
