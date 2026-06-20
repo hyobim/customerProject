@@ -1,49 +1,52 @@
 # 테스트 및 QA 결과
 
-## 자동 테스트
+## 최종 자동 검증
 
-실행일: 2026-06-19  
-환경: Windows, Java 21, Gradle 8.4, Spring Boot 3.0.2
+실행일: 2026-06-20
 
-현재 작업 경로에서는 Gradle 테스트 실행기가 컴파일된 테스트 클래스를 찾지 못하는 한글 경로 정규화 문제가 재현됐다. 동일 소스를 영문 임시 경로로 복사한 뒤 아래 명령과 같은 `clean test`를 수행했다.
+환경: Windows, OpenJDK 17.0.2, Gradle 8.4, Spring Boot 3.0.2
 
-```bash
-gradlew clean test
+경로: `C:\Users\김효빈\OneDrive\Desktop\KIRO실습\customer\customerProject`
+
+```powershell
+$env:JAVA_HOME='C:\Users\김효빈\.jdks\openjdk-17.0.2'
+.\gradlew.bat clean test bootJar --warning-mode all --no-daemon
 ```
 
-결과: `BUILD SUCCESSFUL` — 테스트 20개, 실패 0개, 스킵 0개
+결과:
 
-검증 범위:
+- `BUILD SUCCESSFUL`
+- 테스트 33개, 실패 0개, 스킵 0개
+- `be-address-0.0.1-SNAPSHOT.jar` 생성 성공
+- Gradle `--warning-mode all`에서 제거 예정 API 경고 없음
+
+## 검증 범위
 
 - 전화번호·이메일·필수값 검증과 정규화
-- 전화번호 Map과 이메일 보조 인덱스
-- 중복 등록 및 동시 등록 경쟁
-- 복수 조건 조회와 정렬
-- 전화번호를 포함한 전체 고객정보 수정
-- 삭제 조건 제한과 미존재 처리
-- 잘못된 CSV 행 건너뛰기와 후속 행 적재
-- CSV 원본 백업과 메모리 스냅샷 저장
-- MockMvc 조회·수정 성공 응답
-- MockMvc 잘못된 정렬·삭제 요청 오류 응답
+- HTTP DTO와 업무 검증의 전화번호·이메일 규칙 공유
+- 복수 조건 조회와 정렬, 수정, 삭제 오류 계약
+- 전화번호 Map과 이메일 보조 인덱스의 등록·수정·삭제 일관성
+- 동시 중복 등록, 동일 고객 동시 수정, 수정·삭제 경쟁, snapshot·수정 경쟁
+- CSV 쉼표, 이중 따옴표, 필드 내부 개행, CRLF/LF, 빈 마지막 필드
+- UTF-8 BOM, 닫히지 않은 따옴표, 열 개수 부족·초과, 100,000자 필드
+- 임시 파일 쓰기 실패와 원본 교체 실패 시 원본 보존 및 cause 유지
+- 저장 성공·실패 후 임시 파일 정리
+- 실제 Spring Context의 `@PostConstruct` 로딩과 `@PreDestroy` 종료 저장
+- 종료 시 백업 내용, 최종 CSV 반영, 저장 결과 재로딩
+- MockMvc 조회·수정 성공과 잘못된 정렬·삭제 요청 오류
 
-## 긍정·부정 테스트 균형
+## 실행 JAR API QA
 
-| 계층 | 긍정 | 부정 |
-|---|---:|---:|
-| 검증 | 2 | 2 |
-| 저장소 | 2 | 2 |
-| 서비스 | 2 | 2 |
-| Controller | 2 | 2 |
-| CSV | 2 | 2 |
-| 합계 | 10 | 10 |
+프로젝트 원본과 SHA-256이 같은 `build/qa/qa-address.csv` 복사본으로 JAR를 포트 18080에서 실행했다.
 
-CSV 저장 실패와 추가 동시 수정 시나리오는 후속 테스트 보강 대상으로 남아 있다. 현재 구현의 핵심 정상 흐름과 주요 입력 오류는 자동 검증했다.
+- 기동 시 정상 고객 5건 적재, 잘못된 행 2건 건너뜀
+- `GET /api/customers?phoneNumber=01000000000`: 200, 1건
+- `PUT /api/customers/01000000000`: 200, `010-1234-5678`로 정규화
+- `GET /api/customers?email=qa@hyundai.com`: 200, 수정 고객 1건
+- 프로젝트 루트 `default_address.csv` SHA-256 불변 확인
 
-## 알려진 실행 환경 문제
+현재 실행 도구의 Windows PTY가 Java 프로세스에 `Ctrl+C`를 전달하지 못해 이 수동 실행은 강제 종료했다. 따라서 수동 실행의 종료 저장 결과는 합격 근거로 사용하지 않았고, 정상 종료 저장은 독립 임시 디렉터리를 사용하는 `CustomerDataLifecycleIntegrationTest`로 검증했다.
 
-프로젝트 상위 경로의 한글이 서로 다른 유니코드 정규화 형태로 해석되어 다음 현상이 발생한다.
+## 실행 환경 메모
 
-- `gradlew.bat`가 Wrapper 메인 클래스를 찾지 못함
-- 직접 Wrapper를 실행하면 테스트 클래스가 컴파일된 뒤에도 JUnit 실행기가 클래스를 찾지 못함
-
-소스 컴파일은 원래 경로에서도 성공했고, 전체 테스트는 영문 임시 경로에서 성공했다. 배포나 CI에서는 영문 경로 사용을 권장한다.
+초기 시스템 `JAVA_HOME`은 존재하지 않는 `C:\Program Files\Java\jdk-14.0.2`를 가리켜 Wrapper 실행이 실패했다. 명령 범위에서 실제 OpenJDK 17 경로로 교정한 후 현재 한글 경로에서 전체 테스트와 패키징이 성공했다. 과거 한글 경로 문제는 이번 환경에서 재현되지 않았다.
