@@ -80,12 +80,12 @@ public class GlobalExceptionHandler {
             String message,
             HttpServletRequest request
     ) {
-        return ResponseEntity.status(status).body(new ErrorResponse(
-                Instant.now(),
-                status.value(),
-                status.getReasonPhrase(),
-                message,
-                request.getRequestURI()
-        ));
+        return ResponseEntity.status(status).body(ErrorResponse.builder()
+                .timestamp(Instant.now())
+                .status(status.value())
+                .error(status.getReasonPhrase())
+                .message(message)
+                .path(request.getRequestURI())
+                .build());
     }
 }

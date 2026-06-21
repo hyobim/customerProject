@@ -2,8 +2,10 @@ package com.hyundai.test.address.service;
 
 import com.hyundai.test.address.domain.Customer;
 import com.hyundai.test.address.exception.CustomerNotFoundException;
+import com.hyundai.test.address.exception.InvalidCustomerException;
 import com.hyundai.test.address.exception.InvalidSearchConditionException;
 import com.hyundai.test.address.repository.InMemoryCustomerRepository;
+import com.hyundai.test.address.service.dto.CustomerSearchRequest;
 import com.hyundai.test.address.validation.CustomerValidator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,22 +23,37 @@ class AddressBookServiceTest {
                 new InMemoryCustomerRepository(),
                 new CustomerValidator()
         );
-        service.add(new Customer("서울시 광진구", "01000000000", "hong@hyundai.com", "홍길동"));
-        service.add(new Customer("경기도 성남시", "010-000-0001", "lee@hyundai.com", "이몽룡"));
+        service.add(new Customer(
+                "\uC11C\uC6B8 \uAD11\uC9C4\uAD6C",
+                "01000000000",
+                "hong@hyundai.com",
+                "\uD64D\uAE38\uB3D9"
+        ));
+        service.add(new Customer(
+                "\uACBD\uAE30 \uC131\uB0A8\uC2DC",
+                "010-000-0001",
+                "lee@hyundai.com",
+                "\uC774\uBAA8\uBC14"
+        ));
     }
 
     @Test
-    void 여러_조회_조건을_AND로_결합하고_정렬한다() {
-        assertThat(service.search(null, null, "시", "이", "name", "desc"))
+    void combines_search_filters_with_and_and_sorts_results() {
+        assertThat(service.search(CustomerSearchRequest.builder()
+                        .address("\uC11C\uC6B8")
+                        .name("\uD64D")
+                        .sortBy("name")
+                        .direction("desc")
+                        .build()))
                 .extracting(Customer::name)
-                .containsExactly("이몽룡");
+                .containsExactly("\uD64D\uAE38\uB3D9");
     }
 
     @Test
-    void 전화번호를_포함한_고객정보_전체를_수정한다() {
+    void updates_full_customer_information_including_phone_number() {
         var change = service.update(
                 "01000000000",
-                new Customer("서울시 중구", "01012345678", "new@hyundai.com", "홍길동")
+                new Customer("\uC11C\uC6B8 \uC911\uAD6C", "01012345678", "new@hyundai.com", "\uD64D\uAE38\uB3D9")
         );
 
         assertThat(change.before().phoneNumber()).isEqualTo("010-0000-0000");
@@ -44,16 +61,61 @@ class AddressBookServiceTest {
     }
 
     @Test
-    void 삭제_조건이_두개면_거부한다() {
-        assertThatThrownBy(() -> service.delete(null, null, "서울", "홍"))
+    void rejects_delete_when_multiple_filters_are_provided() {
+        assertThatThrownBy(() -> service.delete(null, null, "\uC11C\uC6B8", "\uD64D"))
                 .isInstanceOf(InvalidSearchConditionException.class);
     }
 
     @Test
-    void 수정_대상이_없으면_예외를_반환한다() {
+    void throws_not_found_when_update_target_does_not_exist() {
         assertThatThrownBy(() -> service.update(
                 "01099999999",
-                new Customer("서울", "01099999999", "none@hyundai.com", "없음")
+                new Customer("\uC11C\uC6B8", "01099999999", "none@hyundai.com", "\uC5C6\uC74C")
         )).isInstanceOf(CustomerNotFoundException.class);
+    }
+
+    @Test
+    void rejects_invalid_email_for_search() {
+        assertThatThrownBy(() -> service.search(CustomerSearchRequest.builder()
+                        .email("invalid-email")
+                        .build()))
+                .isInstanceOf(InvalidCustomerException.class)
+                .hasMessage(CustomerValidator.EMAIL_FORMAT_MESSAGE);
+    }
+
+    @Test
+    void rejects_blank_email_for_search() {
+        assertThatThrownBy(() -> service.search(CustomerSearchRequest.builder()
+                        .email("   ")
+                        .build()))
+                .isInstanceOf(InvalidCustomerException.class)
+                .hasMessage("\uC774\uBA54\uC77C\uC740(\uB294) \uD544\uC218\uC785\uB2C8\uB2E4.");
+    }
+
+    @Test
+    void rejects_invalid_email_for_delete() {
+        assertThatThrownBy(() -> service.delete(null, "invalid-email", null, null))
+                .isInstanceOf(InvalidCustomerException.class)
+                .hasMessage(CustomerValidator.EMAIL_FORMAT_MESSAGE);
+    }
+
+    @Test
+    void returns_empty_list_for_missing_but_valid_search_email() {
+        assertThat(service.search(CustomerSearchRequest.builder()
+                        .email("missing@example.com")
+                        .build()))
+                .isEmpty();
+    }
+
+    @Test
+    void throws_not_found_for_missing_but_valid_delete_email() {
+        assertThatThrownBy(() -> service.delete(null, "missing@example.com", null, null))
+                .isInstanceOf(CustomerNotFoundException.class);
+    }
+
+    @Test
+    void keeps_existing_behavior_when_email_filter_is_absent() {
+        assertThat(service.search(CustomerSearchRequest.builder().build()))
+                .hasSize(2);
     }
 }

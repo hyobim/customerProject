@@ -12,7 +12,7 @@ class CustomerValidatorTest {
     private final CustomerValidator validator = new CustomerValidator();
 
     @Test
-    void 허용된_전화번호를_표준_형식으로_변환한다() {
+    void normalizes_phone_number_formats() {
         assertThat(validator.normalizePhoneNumber("0101231234"))
                 .isEqualTo("010-123-1234");
         assertThat(validator.normalizePhoneNumber("010-1234-1234"))
@@ -20,25 +20,40 @@ class CustomerValidatorTest {
     }
 
     @Test
-    void 고객정보를_검증하고_앞뒤_공백을_제거한다() {
+    void validates_customer_and_trims_surrounding_spaces() {
         Customer customer = validator.validateAndNormalize(
-                new Customer(" 서울 ", "01012345678", "user@example.com", " 이름 ")
+                new Customer(" \uC11C\uC6B8 ", "01012345678", " user@example.com ", " \uD64D\uAE38\uB3D9 ")
         );
 
-        assertThat(customer.address()).isEqualTo("서울");
-        assertThat(customer.name()).isEqualTo("이름");
+        assertThat(customer.address()).isEqualTo("\uC11C\uC6B8");
+        assertThat(customer.email()).isEqualTo("user@example.com");
+        assertThat(customer.name()).isEqualTo("\uD64D\uAE38\uB3D9");
     }
 
     @Test
-    void 잘못된_전화번호를_거부한다() {
+    void rejects_invalid_phone_number() {
         assertThatThrownBy(() -> validator.normalizePhoneNumber("01112345678"))
-                .isInstanceOf(InvalidCustomerException.class);
+                .isInstanceOf(InvalidCustomerException.class)
+                .hasMessage(CustomerValidator.PHONE_FORMAT_MESSAGE);
     }
 
     @Test
-    void 공백이_포함된_이메일을_거부한다() {
-        assertThatThrownBy(() -> validator.validateAndNormalize(
-                new Customer("서울", "01012345678", "user @example.com", "이름")
-        )).isInstanceOf(InvalidCustomerException.class);
+    void rejects_invalid_email_format() {
+        assertThatThrownBy(() -> validator.normalizeEmail("user @example.com"))
+                .isInstanceOf(InvalidCustomerException.class)
+                .hasMessage(CustomerValidator.EMAIL_FORMAT_MESSAGE);
+    }
+
+    @Test
+    void rejects_blank_email() {
+        assertThatThrownBy(() -> validator.normalizeEmail("   "))
+                .isInstanceOf(InvalidCustomerException.class)
+                .hasMessage("\uC774\uBA54\uC77C\uC740(\uB294) \uD544\uC218\uC785\uB2C8\uB2E4.");
+    }
+
+    @Test
+    void preserves_email_case() {
+        assertThat(validator.normalizeEmail("User@Example.com"))
+                .isEqualTo("User@Example.com");
     }
 }

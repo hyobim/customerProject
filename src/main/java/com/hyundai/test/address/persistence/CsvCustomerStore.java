@@ -21,6 +21,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 
 @Component
@@ -53,7 +54,7 @@ public class CsvCustomerStore {
             try (BufferedReader bufferedReader = Files.newBufferedReader(
                     sourcePath, StandardCharsets.UTF_8);
                  PushbackReader reader = new PushbackReader(bufferedReader, 1)) {
-                List<String> header = CsvCodec.readRecord(reader);
+                List<String> header = removeUtf8Bom(CsvCodec.readRecord(reader));
                 validateHeader(header);
 
                 int loaded = 0;
@@ -102,7 +103,12 @@ public class CsvCustomerStore {
             Path temporary = Files.createTempFile(parent, baseName + "_", ".tmp");
             try {
                 writeSnapshot(temporary);
-                replaceSource(temporary);
+                try {
+                    replaceSource(temporary);
+                } catch (IOException replaceException) {
+                    restoreSource(backup, replaceException);
+                    throw replaceException;
+                }
             } finally {
                 Files.deleteIfExists(temporary);
             }
@@ -118,7 +124,7 @@ public class CsvCustomerStore {
         return sourcePath;
     }
 
-    private void writeSnapshot(Path target) throws IOException {
+    void writeSnapshot(Path target) throws IOException {
         List<Customer> customers = service.snapshot().stream()
                 .sorted(java.util.Comparator.comparing(Customer::phoneNumber))
                 .toList();
@@ -136,7 +142,7 @@ public class CsvCustomerStore {
         }
     }
 
-    private void replaceSource(Path temporary) throws IOException {
+    void replaceSource(Path temporary) throws IOException {
         try {
             Files.move(
                     temporary,
@@ -146,6 +152,14 @@ public class CsvCustomerStore {
             );
         } catch (AtomicMoveNotSupportedException exception) {
             Files.move(temporary, sourcePath, StandardCopyOption.REPLACE_EXISTING);
+        }
+    }
+
+    private void restoreSource(Path backup, IOException replaceException) {
+        try {
+            Files.copy(backup, sourcePath, StandardCopyOption.REPLACE_EXISTING);
+        } catch (IOException restoreException) {
+            replaceException.addSuppressed(restoreException);
         }
     }
 
@@ -161,6 +175,15 @@ public class CsvCustomerStore {
             throw new CustomerDataFileException(
                     "CSV 헤더는 주소,연락처,이메일,이름 순서여야 합니다.");
         }
+    }
+
+    private List<String> removeUtf8Bom(List<String> header) {
+        if (header == null || header.isEmpty() || !header.get(0).startsWith("\uFEFF")) {
+            return header;
+        }
+        List<String> normalized = new ArrayList<>(header);
+        normalized.set(0, normalized.get(0).substring(1));
+        return normalized;
     }
 
     private boolean isBlankRow(List<String> row) {
