@@ -127,25 +127,68 @@ BUILD SUCCESSFUL
 
 첫 전체 검증 후 새 영문 임시 복사본에서 `clean test`를 다시 수행해 동일한
 43개 테스트가 모두 성공하는 것을 재확인했다.
-## Email search/delete validation handoff follow-up
-Executed on 2026-06-21.
 
-Implemented:
-- Added `CustomerValidator.normalizeEmail()` so add, update, CSV load, search, and delete can share the same email validation and trimming rule.
-- Updated `AddressBookService.condition()` to validate `email` when the query parameter is present, while still treating an absent email parameter as `null`.
-- Updated delete filter counting so `email=   ` is treated as a provided filter and fails with `400 Bad Request` instead of being ignored.
-- Added unit and integration coverage for invalid email, blank email, missing-but-valid email, and case preservation.
+## CSV 문법 강화 및 이메일 조회·삭제 재검증
 
-Verification attempts:
-- `.\gradlew.bat test --tests com.hyundai.test.address.validation.CustomerValidatorTest --tests com.hyundai.test.address.service.AddressBookServiceTest --tests com.hyundai.test.address.controller.AddressBookApiIntegrationTest --no-daemon`
-- In the original workspace this failed before Gradle startup because the composed Hangul path prevented `gradle-wrapper.jar` from being resolved.
-- Re-ran from an ASCII temp copy at `C:\Users\hyobi\AppData\Local\Temp\be-address-mvc-main-7-qa\be-address-mvc-main 7`.
-- Gradle 8.4 download required network access and succeeded after approval.
-- Test execution still could not complete because this machine only has JDK 21 installed while the project requires Java 17 toolchain.
-- A QA-only retry in the temp copy with toolchain 21 failed during `:compileJava` with Lombok/JDK 21 incompatibility:
-  `java.lang.NoSuchFieldError: Class com.sun.tools.javac.tree.JCTree$JCImport does not have member field 'com.sun.tools.javac.tree.JCTree qualid'`
+실행일: 2026-06-21
 
-QA conclusion:
-- Code changes are in place and aligned with the handoff contract.
-- Automated `unit test -> integration test -> QA -> reverification` could not be fully completed in this environment because a local JDK 17 installation is missing.
-- Reverification should be rerun on a machine with Java 17 available, using the ASCII-path workaround described in `docs/email-search-delete-validation-handoff.md`.
+환경:
+
+- Windows
+- Eclipse Temurin 17.0.19+10
+- Gradle 8.4
+- Spring Boot 3.0.2
+- 원본 경로의 조합형 한글 classpath 문제를 피해 ASCII 임시 복사본
+  `C:\Users\hyobi\AppData\Local\Temp\be-address-csv-qa-20260621`에서 검증
+- 원본과 검증 복사본의 변경 Java 소스 3개 SHA-256 일치 확인
+
+구현 및 검증 범위:
+
+- CSV 파서를 필드 시작, 일반 필드, 따옴표 필드, 닫는 따옴표 직후 상태로 분리
+- 일반 필드 중간 따옴표, 닫는 따옴표 뒤 문자·공백, 닫히지 않은 따옴표 거부
+- 문법 오류를 `CustomerDataFileException`으로 전파해 애플리케이션 기동 실패
+- 열 개수, 고객 데이터 형식과 중복 오류의 레코드 단위 skip 정책 유지
+- quoted 필드의 쉼표, 이스케이프 따옴표, 내부 개행, CRLF, 마지막 개행 없는 파일 회귀 검증
+- 이메일 조회·삭제의 잘못된 형식, 공백, 유효하지만 미존재 조건 재검증
+
+단위 테스트:
+
+```text
+CsvCodecTest 13개
+CsvCustomerStoreTest 9개
+CustomerValidatorTest 6개
+AddressBookServiceTest 10개
+합계 38개, 실패 0개
+```
+
+통합 테스트:
+
+```text
+AddressBookApiIntegrationTest 6개
+CustomerDataLifecycleIntegrationTest 1개
+합계 7개, 실패 0개
+```
+
+실행 JAR QA:
+
+- 유효 이메일 조회: 200, 고객 1건
+- 잘못된 이메일 조회: 400
+- 공백 이메일 조회: 400
+- 유효하지만 미존재 이메일 조회: 200, `[]`
+- 잘못된 이메일 삭제: 400
+- 유효하지만 미존재 이메일 삭제: 404
+- 닫는 따옴표 뒤 일반 문자가 있는 CSV로 실행: `CustomerDataFileException`,
+  Spring Context 기동 실패 및 프로세스 종료 코드 1
+
+최종 재검증:
+
+```text
+clean test bootJar --warning-mode all --no-daemon
+BUILD SUCCESSFUL
+테스트 스위트 9개
+테스트 65개
+실패 0개
+오류 0개
+스킵 0개
+be-address-0.0.1-SNAPSHOT.jar 생성 성공
+```

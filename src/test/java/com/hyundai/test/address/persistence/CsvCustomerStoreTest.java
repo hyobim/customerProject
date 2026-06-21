@@ -41,6 +41,41 @@ class CsvCustomerStoreTest {
     }
 
     @Test
+    void CSV_문법_오류는_건너뛰지_않고_후속행_처리도_중단한다() throws Exception {
+        Path source = tempDirectory.resolve("invalid-syntax.csv");
+        Files.writeString(source, """
+                주소,연락처,이메일,이름
+                "서울"x,01012345678,bad@example.com,문법오류
+                부산,01011112222,next@example.com,후속
+                """, StandardCharsets.UTF_8);
+        AddressBookService service = service();
+        CsvCustomerStore store = new CsvCustomerStore(service, source.toString());
+
+        assertThatThrownBy(store::load)
+                .isInstanceOf(CustomerDataFileException.class)
+                .hasMessageContaining("닫는 따옴표 뒤");
+        assertThat(service.snapshot()).isEmpty();
+    }
+
+    @Test
+    void 중복_행은_건너뛰고_후속_정상행을_적재한다() throws Exception {
+        Path source = tempDirectory.resolve("duplicates.csv");
+        Files.writeString(source, """
+                주소,연락처,이메일,이름
+                서울,01012345678,first@example.com,첫번째
+                부산,01012345678,duplicate@example.com,중복
+                대전,01011112222,next@example.com,후속
+                """, StandardCharsets.UTF_8);
+        AddressBookService service = service();
+        CsvCustomerStore store = new CsvCustomerStore(service, source.toString());
+
+        assertThat(store.load()).isEqualTo(new CsvCustomerStore.LoadResult(2, 1));
+        assertThat(service.snapshot())
+                .extracting("email")
+                .containsExactlyInAnyOrder("first@example.com", "next@example.com");
+    }
+
+    @Test
     void 저장할_때_원본을_백업하고_메모리_스냅샷을_반영한다() throws Exception {
         Path source = tempDirectory.resolve("default_address.csv");
         Files.writeString(source, "주소,연락처,이메일,이름\n", StandardCharsets.UTF_8);

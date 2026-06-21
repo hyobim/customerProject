@@ -60,6 +60,60 @@ class CsvCodecTest {
     }
 
     @Test
+    void 닫는_따옴표_뒤의_일반_문자를_거부한다() {
+        assertThatThrownBy(() -> read("\"서울\"x,01012345678,user@example.com,홍길동"))
+                .isInstanceOf(CustomerDataFileException.class)
+                .hasMessageContaining("닫는 따옴표 뒤");
+    }
+
+    @Test
+    void 따옴표_없는_필드_중간의_따옴표를_거부한다() {
+        assertThatThrownBy(() -> read("서\"울,01012345678,user@example.com,홍길동"))
+                .isInstanceOf(CustomerDataFileException.class)
+                .hasMessageContaining("첫 문자");
+    }
+
+    @Test
+    void 닫는_따옴표_뒤의_공백을_거부한다() {
+        assertThatThrownBy(() -> read("\"서울\" ,01012345678,user@example.com,홍길동"))
+                .isInstanceOf(CustomerDataFileException.class)
+                .hasMessageContaining("닫는 따옴표 뒤");
+    }
+
+    @Test
+    void 여러_물리적_줄을_삼킨_닫히지_않은_따옴표를_거부한다() {
+        assertThatThrownBy(() -> read("""
+                "서울
+                광진구,01012345678,user@example.com,홍길동
+                부산,01011112222,next@example.com,후속
+                """))
+                .isInstanceOf(CustomerDataFileException.class)
+                .hasMessageContaining("닫히지 않은");
+    }
+
+    @Test
+    void quoted_필드의_정상_경계를_읽는다() throws Exception {
+        assertThat(read("\"서울\",01012345678,user@example.com,홍길동"))
+                .containsExactly("서울", "01012345678", "user@example.com", "홍길동");
+        assertThat(read("\"서\"\"울\",01012345678,user@example.com,홍길동"))
+                .containsExactly("서\"울", "01012345678", "user@example.com", "홍길동");
+        assertThat(read("\"서울\n광진구\",01012345678,user@example.com,홍길동"))
+                .containsExactly("서울\n광진구", "01012345678", "user@example.com", "홍길동");
+    }
+
+    @Test
+    void 모든_필드가_quoted인_CRLF_레코드를_읽는다() throws Exception {
+        assertThat(read("\"서울\",\"01012345678\",\"user@example.com\",\"홍길동\"\r\n"))
+                .containsExactly("서울", "01012345678", "user@example.com", "홍길동");
+    }
+
+    @Test
+    void 마지막_quoted_필드가_개행없이_닫혀도_읽는다() throws Exception {
+        assertThat(read("서울,01012345678,user@example.com,\"홍길동\""))
+                .containsExactly("서울", "01012345678", "user@example.com", "홍길동");
+    }
+
+    @Test
     void 열_개수가_부족하거나_초과한_행은_건너뛴다() throws Exception {
         Path source = tempDirectory.resolve("columns.csv");
         Files.writeString(source, """
