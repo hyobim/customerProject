@@ -87,3 +87,65 @@ BUILD SUCCESSFUL
 - 원본 `default_address.csv` SHA-256 불변
 
 QA 프로세스는 확인 후 종료했으며 백그라운드 서버를 남기지 않았다.
+
+## Controller 슬라이스 테스트 분리 및 재검증
+
+실행일: 2026-06-21
+
+기존 `AddressBookControllerTest`는 `@SpringBootTest`와 실제
+`AddressBookService`, Repository를 함께 사용해 Controller 테스트라기보다 API
+통합 테스트에 가까웠다. 다음과 같이 테스트 책임을 분리했다.
+
+- `AddressBookControllerTest`
+  - `@WebMvcTest(AddressBookController.class)` 사용
+  - `AddressBookService`를 `@MockBean`으로 대체
+  - 요청 파라미터와 `CustomerSearchRequest` 바인딩
+  - 요청 JSON과 도메인 객체 변환
+  - Bean Validation
+  - 응답 DTO 직렬화
+  - 400, 404, 409, 500 예외 응답 매핑
+  - 긍정 6건, 부정 6건
+- `AddressBookApiIntegrationTest`
+  - `@SpringBootTest`와 `@AutoConfigureMockMvc` 사용
+  - 실제 Service, Validator, Repository Bean 연결
+  - 조회 → 수정 → 재조회 → 삭제 → 빈 결과 흐름 검증
+- `CustomerDataLifecycleIntegrationTest`
+  - 실제 Spring Context 시작·종료와 CSV 로딩·백업·저장을 계속 검증
+
+현재 작업 경로에서는 Gradle 테스트 실행기가 새 테스트 클래스를 찾지 못하는
+한글 경로 정규화 문제가 다시 발생했다. 소스 컴파일은 성공했으며 같은 소스를
+영문 임시 경로로 복사해 다음 검증을 수행했다.
+
+```text
+clean test bootJar --warning-mode all --no-daemon
+BUILD SUCCESSFUL
+테스트 43개
+실패 0개
+오류 0개
+스킵 0개
+```
+
+첫 전체 검증 후 새 영문 임시 복사본에서 `clean test`를 다시 수행해 동일한
+43개 테스트가 모두 성공하는 것을 재확인했다.
+## Email search/delete validation handoff follow-up
+Executed on 2026-06-21.
+
+Implemented:
+- Added `CustomerValidator.normalizeEmail()` so add, update, CSV load, search, and delete can share the same email validation and trimming rule.
+- Updated `AddressBookService.condition()` to validate `email` when the query parameter is present, while still treating an absent email parameter as `null`.
+- Updated delete filter counting so `email=   ` is treated as a provided filter and fails with `400 Bad Request` instead of being ignored.
+- Added unit and integration coverage for invalid email, blank email, missing-but-valid email, and case preservation.
+
+Verification attempts:
+- `.\gradlew.bat test --tests com.hyundai.test.address.validation.CustomerValidatorTest --tests com.hyundai.test.address.service.AddressBookServiceTest --tests com.hyundai.test.address.controller.AddressBookApiIntegrationTest --no-daemon`
+- In the original workspace this failed before Gradle startup because the composed Hangul path prevented `gradle-wrapper.jar` from being resolved.
+- Re-ran from an ASCII temp copy at `C:\Users\hyobi\AppData\Local\Temp\be-address-mvc-main-7-qa\be-address-mvc-main 7`.
+- Gradle 8.4 download required network access and succeeded after approval.
+- Test execution still could not complete because this machine only has JDK 21 installed while the project requires Java 17 toolchain.
+- A QA-only retry in the temp copy with toolchain 21 failed during `:compileJava` with Lombok/JDK 21 incompatibility:
+  `java.lang.NoSuchFieldError: Class com.sun.tools.javac.tree.JCTree$JCImport does not have member field 'com.sun.tools.javac.tree.JCTree qualid'`
+
+QA conclusion:
+- Code changes are in place and aligned with the handoff contract.
+- Automated `unit test -> integration test -> QA -> reverification` could not be fully completed in this environment because a local JDK 17 installation is missing.
+- Reverification should be rerun on a machine with Java 17 available, using the ASCII-path workaround described in `docs/email-search-delete-validation-handoff.md`.

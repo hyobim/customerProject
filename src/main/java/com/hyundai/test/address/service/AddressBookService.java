@@ -42,13 +42,12 @@ public class AddressBookService {
 
     public List<Customer> delete(String phoneNumber, String email, String address, String name) {
         long filterCount = Stream.of(phoneNumber, email, address, name)
-                .filter(this::hasText)
+                .filter(value -> value != null)
                 .count();
         if (filterCount != 1) {
-            throw new InvalidSearchConditionException("삭제 조건은 정확히 하나만 지정해야 합니다.");
+            throw new InvalidSearchConditionException("\uC0AD\uC81C \uC870\uAC74\uC740 \uC815\uD655\uD788 \uD558\uB098\uB9CC \uC9C0\uC815\uD574\uC57C \uD569\uB2C8\uB2E4.");
         }
-        return repository.delete(condition(
-                phoneNumber, email, address, name, null, null));
+        return repository.delete(condition(phoneNumber, email, address, name, null, null));
     }
 
     public void add(Customer customer) {
@@ -70,7 +69,9 @@ public class AddressBookService {
         String normalizedPhone = hasText(phoneNumber)
                 ? validator.normalizePhoneNumber(phoneNumber)
                 : null;
-        String normalizedEmail = hasText(email) ? email.trim() : null;
+        String normalizedEmail = email == null
+                ? null
+                : validator.normalizeEmail(email);
         String normalizedAddress = hasText(address) ? address.trim() : null;
         String normalizedName = hasText(name) ? name.trim() : null;
 

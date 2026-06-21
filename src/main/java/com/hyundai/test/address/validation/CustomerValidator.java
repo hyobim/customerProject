@@ -12,34 +12,37 @@ public class CustomerValidator {
     public static final String PHONE_REGEX =
             "^(010\\d{7,8}|010-\\d{3}-\\d{4}|010-\\d{4}-\\d{4})$";
     public static final String PHONE_FORMAT_MESSAGE =
-            "전화번호는 0101231234, 010-123-1234 또는 010-1234-1234 형식이어야 합니다.";
+            "\uC804\uD654\uBC88\uD638\uB294 0101231234, 010-123-1234 \uB610\uB294 010-1234-1234 \uD615\uC2DD\uC774\uC5B4\uC57C \uD569\uB2C8\uB2E4.";
     public static final String EMAIL_REGEX = "^[^\\s@]+@[^\\s@]+$";
     public static final String EMAIL_FORMAT_MESSAGE =
-            "이메일은 아이디@도메인 형식이어야 합니다.";
+            "\uC774\uBA54\uC77C\uC740 \uC544\uC774\uB514@\uB3C4\uBA54\uC778 \uD615\uC2DD\uC774\uC5B4\uC57C \uD569\uB2C8\uB2E4.";
 
-    private static final Pattern PHONE_PATTERN =
-            Pattern.compile(PHONE_REGEX);
-    private static final Pattern EMAIL_PATTERN =
-            Pattern.compile(EMAIL_REGEX);
+    private static final Pattern PHONE_PATTERN = Pattern.compile(PHONE_REGEX);
+    private static final Pattern EMAIL_PATTERN = Pattern.compile(EMAIL_REGEX);
 
     public Customer validateAndNormalize(Customer customer) {
         if (customer == null) {
-            throw new InvalidCustomerException("고객정보는 필수입니다.");
+            throw new InvalidCustomerException("\uACE0\uAC1D\uC815\uBCF4\uB294 \uD544\uC218\uC785\uB2C8\uB2E4.");
         }
 
-        String address = requireText(customer.address(), "주소");
-        String phoneNumber = normalizePhoneNumber(requireText(customer.phoneNumber(), "전화번호"));
-        String email = requireText(customer.email(), "이메일");
-        String name = requireText(customer.name(), "이름");
+        String address = requireText(customer.address(), "\uC8FC\uC18C");
+        String phoneNumber = normalizePhoneNumber(requireText(customer.phoneNumber(), "\uC804\uD654\uBC88\uD638"));
+        String email = normalizeEmail(customer.email());
+        String name = requireText(customer.name(), "\uC774\uB984");
 
-        if (!EMAIL_PATTERN.matcher(email).matches()) {
-            throw new InvalidCustomerException(EMAIL_FORMAT_MESSAGE);
-        }
         return new Customer(address, phoneNumber, email, name);
     }
 
+    public String normalizeEmail(String email) {
+        String value = requireText(email, "\uC774\uBA54\uC77C");
+        if (!EMAIL_PATTERN.matcher(value).matches()) {
+            throw new InvalidCustomerException(EMAIL_FORMAT_MESSAGE);
+        }
+        return value;
+    }
+
     public String normalizePhoneNumber(String phoneNumber) {
-        String value = requireText(phoneNumber, "전화번호");
+        String value = requireText(phoneNumber, "\uC804\uD654\uBC88\uD638");
         if (!PHONE_PATTERN.matcher(value).matches()) {
             throw new InvalidCustomerException(PHONE_FORMAT_MESSAGE);
         }
@@ -53,7 +56,7 @@ public class CustomerValidator {
 
     public String requireText(String value, String fieldName) {
         if (value == null || value.isBlank()) {
-            throw new InvalidCustomerException(fieldName + "은(는) 필수입니다.");
+            throw new InvalidCustomerException(fieldName + "\uC740(\uB294) \uD544\uC218\uC785\uB2C8\uB2E4.");
         }
         return value.trim();
     }
