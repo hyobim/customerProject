@@ -75,6 +75,8 @@ public class AddressBookService {
         validateSearchValue(email);
         validateSearchValue(address);
         validateSearchValue(name);
+        validateSearchValue(sortBy);
+        validateSearchValue(direction);
 
         String normalizedPhone = phoneNumber != null
                 ? validator.normalizePhoneNumber(phoneNumber)

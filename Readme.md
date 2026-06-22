@@ -313,7 +313,7 @@ src/main/java/com/hyundai/test/address
 clean test bootJar --warning-mode all --no-daemon
 BUILD SUCCESSFUL
 테스트 스위트 9개
-테스트 76개
+테스트 80개
 실패 0개
 오류 0개
 스킵 0개
@@ -338,7 +338,7 @@ BUILD SUCCESSFUL
 | 프로덕션 클래스·책임 | 검증 테스트 | 주요 검증 내용 |
 |---|---|---|
 | `CustomerValidator` | `CustomerValidatorTest` 6개 | 필수값, 전화번호·이메일 형식, 정규화와 이메일 대소문자 보존 |
-| `AddressBookService` | `AddressBookServiceTest` 15개 | 복수 조건 조회, 수정, 삭제 조건, 빈 전화번호·이메일·주소·이름 검증 |
+| `AddressBookService` | `AddressBookServiceTest` 17개 | 복수 조건 조회, 수정, 삭제 조건, 빈 검색·정렬 파라미터와 기본 정렬 검증 |
 | `InMemoryCustomerRepository` | `InMemoryCustomerRepositoryTest` 7개 | 정확 검색, 중복 방지, 수정 시 보조 인덱스 갱신, 동시성 경쟁 |
 | `CsvCodec` | `CsvCodecTest` 13개 | 쉼표·따옴표·개행·CRLF, BOM, 긴 필드와 엄격한 CSV 문법 검증 |
 | `CsvCustomerStore` | `CsvCustomerStoreTest` 9개 | 초기 로딩, 잘못된 행 skip, 문법 오류 전파, 백업·저장·복구 |

@@ -289,6 +289,29 @@ class AddressBookControllerTest {
                         .value(AddressBookService.DELETE_CONDITION_MESSAGE));
     }
 
+    @Test
+    void 빈_정렬_파라미터는_400_오류_JSON을_반환한다() throws Exception {
+        given(service.search(any(CustomerSearchRequest.class)))
+                .willThrow(new InvalidSearchConditionException(
+                        AddressBookService.EMPTY_SEARCH_CONDITION_MESSAGE));
+
+        for (String parameter : List.of("sortBy", "direction")) {
+            for (String value : List.of("", "   ")) {
+                mockMvc.perform(get("/api/customers").param(parameter, value))
+                        .andExpect(status().isBadRequest())
+                        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                        .andExpect(jsonPath("$.status").value(400))
+                        .andExpect(jsonPath("$.error").value("Bad Request"))
+                        .andExpect(jsonPath("$.message")
+                                .value(AddressBookService.EMPTY_SEARCH_CONDITION_MESSAGE))
+                        .andExpect(jsonPath("$.path").value("/api/customers"))
+                        .andExpect(content().string(
+                                org.hamcrest.Matchers.not(
+                                        org.hamcrest.Matchers.containsString("InvalidSearchConditionException"))));
+            }
+        }
+    }
+
     private Customer customer() {
         return new Customer(
                 "서울시 광진구",

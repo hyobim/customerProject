@@ -136,6 +136,44 @@ class AddressBookServiceTest {
     }
 
     @Test
+    void rejects_empty_and_blank_sort_parameters_for_search() {
+        assertThatThrownBy(() -> service.search(CustomerSearchRequest.builder()
+                        .sortBy("")
+                        .build()))
+                .isInstanceOf(InvalidSearchConditionException.class)
+                .hasMessage(AddressBookService.EMPTY_SEARCH_CONDITION_MESSAGE);
+        assertThatThrownBy(() -> service.search(CustomerSearchRequest.builder()
+                        .sortBy("   ")
+                        .build()))
+                .isInstanceOf(InvalidSearchConditionException.class)
+                .hasMessage(AddressBookService.EMPTY_SEARCH_CONDITION_MESSAGE);
+        assertThatThrownBy(() -> service.search(CustomerSearchRequest.builder()
+                        .direction("")
+                        .build()))
+                .isInstanceOf(InvalidSearchConditionException.class)
+                .hasMessage(AddressBookService.EMPTY_SEARCH_CONDITION_MESSAGE);
+        assertThatThrownBy(() -> service.search(CustomerSearchRequest.builder()
+                        .direction("   ")
+                        .build()))
+                .isInstanceOf(InvalidSearchConditionException.class)
+                .hasMessage(AddressBookService.EMPTY_SEARCH_CONDITION_MESSAGE);
+    }
+
+    @Test
+    void keeps_default_and_valid_sort_behavior() {
+        assertThat(service.search(CustomerSearchRequest.builder().build()))
+                .extracting(Customer::phoneNumber)
+                .containsExactly("010-000-0001", "010-0000-0000");
+
+        assertThat(service.search(CustomerSearchRequest.builder()
+                        .sortBy("name")
+                        .direction("desc")
+                        .build()))
+                .extracting(Customer::name)
+                .containsExactly("\uD64D\uAE38\uB3D9", "\uC774\uBAA8\uBC14");
+    }
+
+    @Test
     void rejects_invalid_email_for_delete() {
         assertThatThrownBy(() -> service.delete(null, "invalid-email", null, null))
                 .isInstanceOf(InvalidCustomerException.class)

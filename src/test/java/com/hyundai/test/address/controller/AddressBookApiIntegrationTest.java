@@ -10,6 +10,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.List;
+
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -131,6 +133,32 @@ class AddressBookApiIntegrationTest {
                         .param("phoneNumber", ""))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400));
+
+        assertThat(service.snapshot())
+                .containsExactlyInAnyOrderElementsOf(before);
+    }
+
+    @Test
+    void blank_sort_parameters_are_rejected_without_changing_customer_data() throws Exception {
+        var before = service.snapshot();
+
+        for (String parameter : List.of("sortBy", "direction")) {
+            for (String value : List.of("", "   ")) {
+                mockMvc.perform(get("/api/customers").param(parameter, value))
+                        .andExpect(status().isBadRequest())
+                        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                        .andExpect(jsonPath("$.status").value(400))
+                        .andExpect(jsonPath("$.message")
+                                .value(AddressBookService.EMPTY_SEARCH_CONDITION_MESSAGE));
+            }
+        }
+
+        mockMvc.perform(get("/api/customers"))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/customers")
+                        .param("sortBy", "name")
+                        .param("direction", "desc"))
+                .andExpect(status().isOk());
 
         assertThat(service.snapshot())
                 .containsExactlyInAnyOrderElementsOf(before);
