@@ -25,6 +25,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -226,6 +227,66 @@ class AddressBookControllerTest {
                 .andExpect(content().string(
                         org.hamcrest.Matchers.not(
                                 org.hamcrest.Matchers.containsString("내부 상세 오류"))));
+    }
+
+    @Test
+    void 지원하지_않는_HTTP_메서드는_405를_반환한다() throws Exception {
+        mockMvc.perform(post("/api/customers")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(validRequestBody()))
+                .andExpect(status().isMethodNotAllowed())
+                .andExpect(jsonPath("$.status").value(405))
+                .andExpect(jsonPath("$.error").value("Method Not Allowed"))
+                .andExpect(jsonPath("$.path").value("/api/customers"));
+    }
+
+    @Test
+    void 지원하지_않는_Content_Type은_415를_반환한다() throws Exception {
+        mockMvc.perform(put("/api/customers/01000000000")
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .content(validRequestBody()))
+                .andExpect(status().isUnsupportedMediaType())
+                .andExpect(jsonPath("$.status").value(415))
+                .andExpect(jsonPath("$.error").value("Unsupported Media Type"))
+                .andExpect(jsonPath("$.path").value("/api/customers/01000000000"));
+    }
+
+    @Test
+    void 지원하지_않는_Accept은_406을_반환한다() throws Exception {
+        mockMvc.perform(get("/api/customers")
+                        .accept(MediaType.APPLICATION_XML))
+                .andExpect(status().isNotAcceptable())
+                .andExpect(jsonPath("$.status").value(406))
+                .andExpect(jsonPath("$.error").value("Not Acceptable"))
+                .andExpect(jsonPath("$.path").value("/api/customers"));
+    }
+
+    @Test
+    void 빈_삭제_조건은_400_오류_JSON을_반환한다() throws Exception {
+        given(service.delete("", null, null, null))
+                .willThrow(new InvalidSearchConditionException(
+                        AddressBookService.DELETE_CONDITION_MESSAGE));
+
+        mockMvc.perform(delete("/api/customers").param("phoneNumber", ""))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.message")
+                        .value(AddressBookService.DELETE_CONDITION_MESSAGE))
+                .andExpect(jsonPath("$.path").value("/api/customers"));
+    }
+
+    @Test
+    void 공백_삭제_조건은_400_오류_JSON을_반환한다() throws Exception {
+        given(service.delete(null, "   ", null, null))
+                .willThrow(new InvalidSearchConditionException(
+                        AddressBookService.DELETE_CONDITION_MESSAGE));
+
+        mockMvc.perform(delete("/api/customers").param("email", "   "))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.message")
+                        .value(AddressBookService.DELETE_CONDITION_MESSAGE));
     }
 
     private Customer customer() {

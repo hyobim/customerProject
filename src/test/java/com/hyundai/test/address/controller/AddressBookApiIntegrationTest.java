@@ -16,6 +16,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest(properties = "address.persistence.enabled=false")
 @AutoConfigureMockMvc
@@ -84,7 +85,7 @@ class AddressBookApiIntegrationTest {
                         .param("email", "   "))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message")
-                        .value("\uC774\uBA54\uC77C\uC740(\uB294) \uD544\uC218\uC785\uB2C8\uB2E4."));
+                        .value(AddressBookService.EMPTY_SEARCH_CONDITION_MESSAGE));
     }
 
     @Test
@@ -108,5 +109,30 @@ class AddressBookApiIntegrationTest {
         mockMvc.perform(delete("/api/customers")
                         .param("email", "missing@example.com"))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void blank_delete_condition_is_rejected_without_deleting_any_customer() throws Exception {
+        service.add(new Customer(
+                "\uC11C\uC6B8 \uC1A1\uD30C\uAD6C",
+                "01055556666",
+                "qa-one@hyundai.com",
+                "\uD050\uC5D0\uC774\uC6D0"
+        ));
+        service.add(new Customer(
+                "\uACBD\uAE30 \uC6A9\uC778\uC2DC",
+                "01077778888",
+                "qa-two@hyundai.com",
+                "\uD050\uC5D0\uC774\uD22C"
+        ));
+        var before = service.snapshot();
+
+        mockMvc.perform(delete("/api/customers")
+                        .param("phoneNumber", ""))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400));
+
+        assertThat(service.snapshot())
+                .containsExactlyInAnyOrderElementsOf(before);
     }
 }

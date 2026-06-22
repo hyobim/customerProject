@@ -9,11 +9,17 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.HttpMediaTypeNotAcceptableException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.bind.ServletRequestBindingException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.time.Instant;
 
@@ -26,7 +32,9 @@ public class GlobalExceptionHandler {
             InvalidCustomerException.class,
             InvalidSearchConditionException.class,
             MethodArgumentNotValidException.class,
-            HttpMessageNotReadableException.class
+            HttpMessageNotReadableException.class,
+            ServletRequestBindingException.class,
+            MethodArgumentTypeMismatchException.class
     })
     public ResponseEntity<ErrorResponse> handleBadRequest(
             Exception exception,
@@ -44,6 +52,30 @@ public class GlobalExceptionHandler {
             message = exception.getMessage();
         }
         return response(HttpStatus.BAD_REQUEST, message, request);
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleMethodNotAllowed(
+            HttpRequestMethodNotSupportedException exception,
+            HttpServletRequest request
+    ) {
+        return response(HttpStatus.METHOD_NOT_ALLOWED, exception.getMessage(), request);
+    }
+
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleUnsupportedMediaType(
+            HttpMediaTypeNotSupportedException exception,
+            HttpServletRequest request
+    ) {
+        return response(HttpStatus.UNSUPPORTED_MEDIA_TYPE, exception.getMessage(), request);
+    }
+
+    @ExceptionHandler(HttpMediaTypeNotAcceptableException.class)
+    public ResponseEntity<ErrorResponse> handleNotAcceptable(
+            HttpMediaTypeNotAcceptableException exception,
+            HttpServletRequest request
+    ) {
+        return response(HttpStatus.NOT_ACCEPTABLE, exception.getMessage(), request);
     }
 
     @ExceptionHandler(CustomerNotFoundException.class)
@@ -80,12 +112,14 @@ public class GlobalExceptionHandler {
             String message,
             HttpServletRequest request
     ) {
-        return ResponseEntity.status(status).body(ErrorResponse.builder()
-                .timestamp(Instant.now())
-                .status(status.value())
-                .error(status.getReasonPhrase())
-                .message(message)
-                .path(request.getRequestURI())
-                .build());
+        return ResponseEntity.status(status)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(ErrorResponse.builder()
+                        .timestamp(Instant.now())
+                        .status(status.value())
+                        .error(status.getReasonPhrase())
+                        .message(message)
+                        .path(request.getRequestURI())
+                        .build());
     }
 }

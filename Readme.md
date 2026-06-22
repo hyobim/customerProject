@@ -88,7 +88,7 @@ GET /api/customers
 | `sortBy` | `phoneNumber`, `email`, `address`, `name` |
 | `direction` | `asc`, `desc` |
 
-복수 필터는 AND로 결합합니다. 필터가 없으면 전체 고객을 조회합니다. `sortBy`와 `direction`은 각각 생략할 수 있으며, 생략한 값에는 전화번호와 오름차순을 기본 적용합니다.
+복수 필터는 AND로 결합합니다. 필터가 없으면 전체 고객을 조회합니다. 조회 파라미터가 전달된 경우 빈 문자열이나 공백만 있는 값은 `400 Bad Request`로 거부합니다. `sortBy`와 `direction`은 각각 생략할 수 있으며, 생략한 값에는 전화번호와 오름차순을 기본 적용합니다.
 
 ```bash
 curl "http://localhost:8080/api/customers?address=서울&name=홍&sortBy=name&direction=asc"
@@ -136,7 +136,7 @@ curl -X PUT "http://localhost:8080/api/customers/01000000000" \
 
 ### 고객 삭제
 
-`phoneNumber`, `email`, `address`, `name` 중 정확히 하나의 조건만 전달해야 합니다.
+`phoneNumber`, `email`, `address`, `name` 중 비어 있지 않은 정확히 하나의 조건만 전달해야 합니다. 빈 문자열이나 공백 조건은 `400 Bad Request`로 거부되며 전체 고객 삭제로 이어지지 않습니다.
 
 ```bash
 curl -X DELETE "http://localhost:8080/api/customers?email=new@hyundai.com"
@@ -176,6 +176,9 @@ curl -X DELETE "http://localhost:8080/api/customers?email=new@hyundai.com"
 | 상황 | HTTP Status |
 |---|---:|
 | 필수값, 전화번호·이메일 형식 또는 검색·정렬 조건 오류 | `400 Bad Request` |
+| 지원하지 않는 HTTP 메서드 | `405 Method Not Allowed` |
+| 지원하지 않는 응답 미디어 타입 | `406 Not Acceptable` |
+| 지원하지 않는 요청 Content-Type | `415 Unsupported Media Type` |
 | 수정 또는 삭제 대상 없음 | `404 Not Found` |
 | 전화번호 또는 이메일 중복 | `409 Conflict` |
 | 예상하지 못한 서버 오류 | `500 Internal Server Error` |
@@ -310,7 +313,7 @@ src/main/java/com/hyundai/test/address
 clean test bootJar --warning-mode all --no-daemon
 BUILD SUCCESSFUL
 테스트 스위트 9개
-테스트 65개
+테스트 76개
 실패 0개
 오류 0개
 스킵 0개
@@ -320,10 +323,10 @@ BUILD SUCCESSFUL
 |---|---|
 | 검증 단위 테스트 | 전화번호·이메일·필수값 검증과 정규화 |
 | 저장소 단위 테스트 | 검색, 중복, 인덱스 일관성과 동시성 경쟁 |
-| 서비스 단위 테스트 | 복수 조건 조회, 수정·삭제와 이메일 조건 검증 |
+| 서비스 단위 테스트 | 복수 조건 조회, 수정·삭제와 모든 빈 검색·삭제 조건 검증 |
 | CSV 단위 테스트 | 문법 경계값, 오류 정책, 저장·복구 실패 처리 |
-| Controller 슬라이스 테스트 | MockMvc 요청 바인딩, 직렬화와 400·404·409·500 응답 |
-| API 통합 테스트 | 실제 Service·Validator·Repository를 연결한 HTTP 계약 |
+| Controller 슬라이스 테스트 | MockMvc 요청 바인딩, 직렬화와 400·404·405·406·409·415·500 응답 |
+| API 통합 테스트 | 실제 Service·Validator·Repository를 연결한 HTTP 계약과 빈 삭제 조건의 데이터 보존 |
 | 생명주기 통합 테스트 | Spring Context 시작·종료, 백업, 저장과 재로딩 |
 
 ### 테스트 요구사항 충족
@@ -335,12 +338,12 @@ BUILD SUCCESSFUL
 | 프로덕션 클래스·책임 | 검증 테스트 | 주요 검증 내용 |
 |---|---|---|
 | `CustomerValidator` | `CustomerValidatorTest` 6개 | 필수값, 전화번호·이메일 형식, 정규화와 이메일 대소문자 보존 |
-| `AddressBookService` | `AddressBookServiceTest` 10개 | 복수 조건 조회, 수정, 삭제 조건, 잘못된·공백·미존재 이메일 |
+| `AddressBookService` | `AddressBookServiceTest` 15개 | 복수 조건 조회, 수정, 삭제 조건, 빈 전화번호·이메일·주소·이름 검증 |
 | `InMemoryCustomerRepository` | `InMemoryCustomerRepositoryTest` 7개 | 정확 검색, 중복 방지, 수정 시 보조 인덱스 갱신, 동시성 경쟁 |
 | `CsvCodec` | `CsvCodecTest` 13개 | 쉼표·따옴표·개행·CRLF, BOM, 긴 필드와 엄격한 CSV 문법 검증 |
 | `CsvCustomerStore` | `CsvCustomerStoreTest` 9개 | 초기 로딩, 잘못된 행 skip, 문법 오류 전파, 백업·저장·복구 |
 | DTO·record·enum | `DtoBuilderTest` 및 Controller·Service 테스트 | Builder, 도메인 변환, JSON 직렬화, 정렬 값 매핑 |
-| 예외와 `GlobalExceptionHandler` | `AddressBookControllerTest` | 예외별 400·404·409·500 상태와 사용자용 오류 응답 |
+| 예외와 `GlobalExceptionHandler` | `AddressBookControllerTest` | 예외별 400·404·405·406·409·415·500 상태와 사용자용 JSON 오류 응답 |
 
 요구사항에 명시된 핵심 프로세스는 다음과 같이 검증했습니다.
 

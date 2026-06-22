@@ -67,6 +67,33 @@ class AddressBookServiceTest {
     }
 
     @Test
+    void rejects_delete_when_phone_number_is_blank() {
+        assertThatThrownBy(() -> service.delete("", null, null, null))
+                .isInstanceOf(InvalidSearchConditionException.class);
+    }
+
+    @Test
+    void rejects_delete_when_email_is_blank() {
+        assertThatThrownBy(() -> service.delete(null, "   ", null, null))
+                .isInstanceOf(InvalidSearchConditionException.class);
+    }
+
+    @Test
+    void rejects_delete_when_address_or_name_is_blank() {
+        assertThatThrownBy(() -> service.delete(null, null, "", null))
+                .isInstanceOf(InvalidSearchConditionException.class);
+        assertThatThrownBy(() -> service.delete(null, null, null, "   "))
+                .isInstanceOf(InvalidSearchConditionException.class);
+    }
+
+    @Test
+    void rejects_delete_when_valid_and_blank_filters_are_mixed() {
+        assertThatThrownBy(() -> service.delete("01000000000", null, "   ", null))
+                .isInstanceOf(InvalidSearchConditionException.class)
+                .hasMessage(AddressBookService.EMPTY_SEARCH_CONDITION_MESSAGE);
+    }
+
+    @Test
     void throws_not_found_when_update_target_does_not_exist() {
         assertThatThrownBy(() -> service.update(
                 "01099999999",
@@ -88,8 +115,24 @@ class AddressBookServiceTest {
         assertThatThrownBy(() -> service.search(CustomerSearchRequest.builder()
                         .email("   ")
                         .build()))
-                .isInstanceOf(InvalidCustomerException.class)
-                .hasMessage("\uC774\uBA54\uC77C\uC740(\uB294) \uD544\uC218\uC785\uB2C8\uB2E4.");
+                .isInstanceOf(InvalidSearchConditionException.class)
+                .hasMessage(AddressBookService.EMPTY_SEARCH_CONDITION_MESSAGE);
+    }
+
+    @Test
+    void rejects_blank_phone_address_and_name_for_search() {
+        assertThatThrownBy(() -> service.search(CustomerSearchRequest.builder()
+                        .phoneNumber(" ")
+                        .build()))
+                .isInstanceOf(InvalidSearchConditionException.class);
+        assertThatThrownBy(() -> service.search(CustomerSearchRequest.builder()
+                        .address("")
+                        .build()))
+                .isInstanceOf(InvalidSearchConditionException.class);
+        assertThatThrownBy(() -> service.search(CustomerSearchRequest.builder()
+                        .name("   ")
+                        .build()))
+                .isInstanceOf(InvalidSearchConditionException.class);
     }
 
     @Test
